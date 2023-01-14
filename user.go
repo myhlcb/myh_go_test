@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"strings"
 )
 
 type User struct {
@@ -53,8 +54,27 @@ func (this *User) DoMessage(msg string) {
 		}
 		this.server.mapLock.Unlock()
 
+	} else if len(msg) > 7 && msg[:7] == "rename|" {
+		//消息格式rename|张三
+		newName := strings.Split(msg, "|")[1]
+		//判断name是否存在
+		_, ok := this.server.OnlineMap[newName]
+		if ok {
+			this.SendMsg("当前用户名被占用\n", this.conn)
+
+		} else {
+			this.server.mapLock.Lock()
+			delete(this.server.OnlineMap, this.Name)
+			this.server.OnlineMap[newName] = this
+			this.server.mapLock.Unlock()
+			this.Name = newName
+			this.SendMsg("您已经更新用户名:"+this.Name+"\n", this.conn)
+		}
+
+	} else {
+		this.server.BroadCast(this, msg)
 	}
-	this.server.BroadCast(this, msg)
+
 }
 func NewUser(conn net.Conn, server *Server) *User {
 	userAddr := conn.RemoteAddr().String()
