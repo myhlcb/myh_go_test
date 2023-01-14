@@ -32,11 +32,8 @@ func (this *Server) BroadCast(user *User, msg string) {
 
 // 处理用户登录
 func (this *Server) Handle(conn net.Conn) {
-	user := NewUser(conn)
-	this.mapLock.Lock() //加锁
-	this.OnlineMap[user.Name] = user
-	this.mapLock.Unlock() //释放锁
-	this.BroadCast(user, "已上线")
+	user := NewUser(conn, this)
+	user.Online()
 	//接受客户端发送的消息
 	go func() {
 		buf := make([]byte, 4096)
@@ -45,7 +42,8 @@ func (this *Server) Handle(conn net.Conn) {
 			n, err := conn.Read(buf)
 			//标识语用户下线
 			if n == 0 {
-				this.BroadCast(user, "下线")
+				user.Outline()
+				return
 			}
 			//非法操作
 			if err != nil && err != io.EOF {
@@ -54,7 +52,8 @@ func (this *Server) Handle(conn net.Conn) {
 			}
 			// 提取用户消息,去除\n
 			msg := string(buf[:n-1])
-			this.BroadCast(user, msg)
+			//消息处理(交给用户)
+			user.DoMessage(msg)
 		}
 	}()
 	//当前handle阻塞
