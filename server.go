@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync" //加锁用
+	"time"
 )
 
 type Server struct {
@@ -34,6 +35,7 @@ func (this *Server) BroadCast(user *User, msg string) {
 func (this *Server) Handle(conn net.Conn) {
 	user := NewUser(conn, this)
 	user.Online()
+	isLive := make(chan bool)
 	//接受客户端发送的消息
 	go func() {
 		buf := make([]byte, 4096)
@@ -54,10 +56,24 @@ func (this *Server) Handle(conn net.Conn) {
 			msg := string(buf[:n-1])
 			//消息处理(交给用户)
 			user.DoMessage(msg)
+			//用户任意消息,代表当前用户是活跃的
+			isLive <- true
 		}
 	}()
 	//当前handle阻塞
-	select {}
+	for {
+		select {
+		case <-isLive:
+
+		case <-time.After(time.Second * 10):
+			//已经超时
+			//将当前用户强制关闭
+			user.SendMsg("你被踢了\n", conn)
+			close(user.C)
+			conn.Close()
+			return
+		}
+	}
 }
 func NewServer(ip string, port int) *Server {
 	server := &Server{
