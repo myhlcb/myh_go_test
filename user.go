@@ -38,7 +38,7 @@ func (this *User) Outline() {
 }
 
 // 给当前user对应客户端发消息
-func (this *User) SendMsg(msg string, conn net.Conn) {
+func (this *User) SendMsg(msg string) {
 	this.conn.Write([]byte(msg))
 }
 
@@ -49,7 +49,7 @@ func (this *User) DoMessage(msg string) {
 		this.server.mapLock.Lock()
 		for _, user := range this.server.OnlineMap {
 			OnlineMsg := fmt.Sprintf("[%s]%s:在线", user.Addr, user.Name)
-			this.SendMsg(OnlineMsg, this.conn)
+			this.SendMsg(OnlineMsg)
 
 		}
 		this.server.mapLock.Unlock()
@@ -60,7 +60,7 @@ func (this *User) DoMessage(msg string) {
 		//判断name是否存在
 		_, ok := this.server.OnlineMap[newName]
 		if ok {
-			this.SendMsg("当前用户名被占用\n", this.conn)
+			this.SendMsg("当前用户名被占用\n")
 
 		} else {
 			this.server.mapLock.Lock()
@@ -68,8 +68,23 @@ func (this *User) DoMessage(msg string) {
 			this.server.OnlineMap[newName] = this
 			this.server.mapLock.Unlock()
 			this.Name = newName
-			this.SendMsg("您已经更新用户名:"+this.Name+"\n", this.conn)
+			this.SendMsg("您已经更新用户名:" + this.Name + "\n")
 		}
+
+	} else if len(msg) > 4 && msg[:3] == "to|" {
+		//消息格式 to|张三|消息内容
+		//1 获取对方名字
+		remoteName := strings.Split(msg, "|")[1]
+		//判断name是否存在
+		remoteUser, ok := this.server.OnlineMap[remoteName]
+		if !ok {
+			this.SendMsg("当前用户不存在\n")
+			return
+		}
+		//2 根据用户名得到对方User对象
+		content := strings.Split(msg, "|")[2]
+		remoteUser.SendMsg(this.Name + "对你说:" + content)
+		//3 获取消息内容发送过去
 
 	} else {
 		this.server.BroadCast(this, msg)

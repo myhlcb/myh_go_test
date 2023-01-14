@@ -35,7 +35,7 @@ func (this *Server) BroadCast(user *User, msg string) {
 func (this *Server) Handle(conn net.Conn) {
 	user := NewUser(conn, this)
 	user.Online()
-	isLive := make(chan bool)
+	isLive := make(chan bool) //默认值false
 	//接受客户端发送的消息
 	go func() {
 		buf := make([]byte, 4096)
@@ -65,10 +65,10 @@ func (this *Server) Handle(conn net.Conn) {
 		select {
 		case <-isLive:
 
-		case <-time.After(time.Second * 10):
+		case <-time.After(time.Second * 1000):
 			//已经超时
 			//将当前用户强制关闭
-			user.SendMsg("你被踢了\n", conn)
+			user.SendMsg("你被踢了\n")
 			close(user.C)
 			conn.Close()
 			return
